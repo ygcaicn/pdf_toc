@@ -8,7 +8,7 @@ import io
 import os
 
 
-def parserToc(toc_file):
+def parserToc(toc_file, save_error=0):
     print('parser toc file...')
     toc = []
     err = 0
@@ -16,6 +16,9 @@ def parserToc(toc_file):
         for t in f.readlines():
             if not t.strip():
                 continue
+            t = t.strip('\n')
+             # pre format
+            t = re.sub(r'[\s.]+(\d*)$', r'@\1', t)
             # \tchapter@5
             # \tchapter@-1
             re_t = re.match(r'^(\s*)([\s\S]+)@([-\d]+)$', t)
@@ -41,6 +44,8 @@ def parserToc(toc_file):
                 toc.append([level, name, page])
                 continue
             print("parser error:{}".format(t))
+            if save_error:
+                toc.append([1, t, -1])
             err+=1
     print('格式错误：{}'.format(err))
     return err, toc
@@ -54,31 +59,48 @@ def formatToC(tocs, file=sys.stdout):
         print('\t' * (level - 1) + "{}@{}".format(name, page), file=file)
 
 
-def check_level(tocs):
+def check_level(tocs, save_error=0):
     print('check toc level...')
+    if len(tocs) == 0:
+        return 0, []
     err = 0
     ret_toc = []
-    s = []
+    last_level = 1
     for t in tocs:
-        flag = 0
-        if len(s) == 0:
-            s.append(t[0])
-        elif t[0] == s[-1]:
-            ...
-        elif t[0] > s[-1]:
-            if t[0] - s[-1] == 1:
-                s.append(t[0])
-            else:
-                print("check level error:{}".format(t))
-                err+=1
-                flag = 1
-        elif t[0] < s[-1]:
-            s = s[:(t[0] - s[-1])]
-        if not flag:
+        if t[0] > last_level + 1:
+            # error
+            err += 1
+            print("check level error:{}".format(t))
+            if save_error:
+                ret_toc.append(t)
+        else:
+            last_level = t[0]
+            t[0] = last_level
             ret_toc.append(t)
+
     print('大纲级别错误：{}'.format(err))
     return err, ret_toc
 
+def auto_level(tocs):
+    if len(tocs) == 0:
+        return []
+    tocs[0][0] = 1
+    last_level = 1
+
+    for t in tocs[1:]:
+        name = t[1]
+        # 2级标题
+        if re.match(r'(^\d+\.\d+[^.])', name):
+            t[0] = 2
+            last_level =2
+        # 3级标题
+        if re.match(r'(^\d+\.\d+\.\d+[^.])', name):
+            if last_level >= 3-1:
+                t[0] = 3
+                last_level =3
+            else:
+                t[0] = last_level
+    return tocs
 
 def func_export(args):
     pdf_file = args.pdf_file
@@ -105,6 +127,9 @@ def func_mount(args):
         toc_file = pdf_file+'.txt'
     err, tocs = parserToc(toc_file)
     err, tocs = check_level(tocs)
+    if err > 0:
+        print("需要解决大纲级别问题！")
+        return 1
     # print(tocs)
     _tocs = []
     for i in tocs:
@@ -135,55 +160,26 @@ def func_clean(args):
     doc.save(output, incremental=True, encryption=fitz.PDF_ENCRYPT_KEEP)
 
 def func_format(args):
+    print(args)
     toc_file = args.toc_file
-    out = io.StringIO()
+    _, tocs = parserToc(toc_file, save_error=True)
+    tocs = auto_level(tocs)
+    _, tocs = check_level(tocs)
 
-    print('parser toc file...')
-    err = 0
-    with open(toc_file, 'rt+') as f:
-        for t in f.readlines():
-            if not t.strip():
-                continue
-            # \tchapter@5
-            # \tchapter@-1
-            re_t = re.match(r'^(\s*)([\s\S]+)@([-\d]+)$', t)
-            if re_t:
-                level = len(re_t.group(1)) + 1
-                name = re_t.group(2).strip()
-                page = int(re_t.group(3))
-                print('\t' * (level - 1) + "{}@{}".format(name, page))
-                print('\t' * (level - 1) + "{}@{}".format(name, page), file=out)
-                continue
-            # \tchapter 5
-            re_t = re.match(r'^(\s*)([\s\S]+?)(\d+)$', t)
-            if re_t:
-                level = len(re_t.group(1)) + 1
-                name = re_t.group(2).strip()
-                page = int(re_t.group(3))
-                print('\t' * (level - 1) + "{}@{}".format(name, page))
-                print('\t' * (level - 1) + "{}@{}".format(name, page), file=out)
-                continue
-            # \tchapter
-            re_t = re.match(r'^(\s*)([\s\S]+?)$', t)
-            if re_t:
-                level = len(re_t.group(1)) + 1
-                name = re_t.group(2).strip()
-                page = -1
-                print('\t' * (level - 1) + "{}@{}".format(name, page))
-                print('\t' * (level - 1) + "{}@{}".format(name, page), file=out)
-                continue
-            print("parser error:{}".format(t))
-            print(t, file=out)
-
-            err+=1
-        print('格式错误：{}'.format(err))
-        if not args.out:
+    if args.i:
+        with open(toc_file, 'wt') as f:
             f.seek(0)
             f.truncate(0)
-            f.write(out.getvalue())
-        else:
-            with open(args.out) as out_file:
-                out_file.write(out.getvalue())
+            formatToC(tocs, f)
+        return 0
+
+    formatToC(tocs)
+    # -o指定了文件
+    if args.out:
+        with open(args.out, 'wt') as f:
+            formatToC(tocs, f)
+
+
 
 
 if __name__ == '__main__':
@@ -208,7 +204,7 @@ if __name__ == '__main__':
 
     parser_format = subparsers.add_parser('format', help='test toc file')
     parser_format.add_argument('-o', '--out', help='output to file')
-
+    parser_format.add_argument('-i', action='store_true', help='output to file')
     parser_format.add_argument('toc_file', help='toc file')
     parser_format.set_defaults(func=func_format)
 
