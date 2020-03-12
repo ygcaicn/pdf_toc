@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="/img">
+    <file alias="up_2.png">img/arrow_up_128px_571530_easyicon.net.png</file>
+    <file alias="up.png">img/up_arrow_96px_1228872_easyicon.net.png</file>
+    <file alias="green.png">img/trafficlight_green_72px_1187357_easyicon.net.png</file>
+    <file alias="bus.png">img/bus_195.87473903967px_1224749_easyicon.net.png</file>
+    <file alias="red.png">img/red.png</file>
+    <file alias="black.png">img/black.png</file>
+    <file alias="temp.;jpg">img/5492011_185919810038_2.jpg</file>
+  </qresource>
+</RCC>
