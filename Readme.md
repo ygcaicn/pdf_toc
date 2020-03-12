@@ -95,7 +95,7 @@ dst:`\t\t$1`
 ### 挂载目录到pdf文件
 
 ```bash
-# 默认使用1.pdf.txt作为toc文件
+# 默认使用1.pdf.txt作为toc文件, 可使用-t选项指定
 # -i指定基准页
 # -c指定默认展开几级目录，默认1,0全部展开
 ./toc.py mount ~/Downloads/1.pdf -i 10 -c 2
