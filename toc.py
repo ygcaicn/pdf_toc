@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import re
 import fitz
 import argparse
@@ -18,7 +18,7 @@ def parserToc(toc_file, save_error=0):
                 continue
             t = t.strip('\n')
              # pre format
-            t = re.sub(r'[\s.]+(\d*)$', r'@\1', t)
+            t = re.sub(r'[\s.·]+(\d*)$', r'@\1', t)
             # \tchapter@5
             # \tchapter@-1
             re_t = re.match(r'^(\s*)([\s\S]+)@([-\d]+)$', t)
@@ -160,11 +160,11 @@ def func_clean(args):
     doc.save(output, incremental=True, encryption=fitz.PDF_ENCRYPT_KEEP)
 
 def func_format(args):
-    print(args)
+    # print(args)
     toc_file = args.toc_file
     _, tocs = parserToc(toc_file, save_error=True)
     tocs = auto_level(tocs)
-    _, tocs = check_level(tocs)
+    _, tocs = check_level(tocs, save_error=True)
 
     if args.i:
         with open(toc_file, 'wt') as f:
@@ -214,4 +214,5 @@ if __name__ == '__main__':
     parser_clear.set_defaults(func=func_clean)
 
     args = parser.parse_args()
+    os.chdir(os.getcwd())
     args.func(args)
